@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DEREK. — Blair's Coaching Dashboard</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', sans-serif; background: #0a0e16; color: #e2e8f0; min-height: 100vh; }
+
+.loading-overlay { position: fixed; inset: 0; background: #0a0e16; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; gap: 16px; }
+.loading-logo { font-size: 2rem; font-weight: 900; color: #c9a84c; letter-spacing: 0.12em; }
+.loading-sub { font-size: 0.82rem; color: #64748b; }
+.loading-bar-track { width: 220px; height: 4px; background: #1e293b; border-radius: 99px; overflow: hidden; }
+.loading-bar-fill { height: 100%; background: linear-gradient(90deg,#c9a84c,#f0d080); border-radius: 99px; animation: loadpulse 1.8s ease-in-out infinite; }
+@keyframes loadpulse { 0%{width:0%} 60%{width:80%} 100%{width:100%} }
+
+.nav { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; background: #0a0e16; border-bottom: 2px solid #c9a84c44; position: sticky; top: 0; z-index: 100; flex-wrap: wrap; gap: 8px; }
+.nav-logo { font-size: 0.95rem; font-weight: 900; letter-spacing: 0.12em; color: #c9a84c; }
+.nav-logo span { color: #fff; }
+.nav-client { font-size: 0.68rem; color: #475569; margin-top: 2px; }
+.nav-right { display: flex; align-items: center; gap: 8px; }
+.sync-btn { background: #1a2332; border: 1px solid #334155; color: #94a3b8; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 0.7rem; font-weight: 700; transition: all 0.2s; }
+.sync-btn:hover { border-color: #c9a84c; color: #c9a84c; }
+.sync-status { font-size: 0.65rem; color: #475569; }
+
+.tabs { display: flex; gap: 5px; flex-wrap: wrap; padding: 10px 20px; background: #0d1117; border-bottom: 1px solid #1e293b; }
+.tab-btn { padding: 7px 14px; border-radius: 8px; border: none; cursor: pointer; font-size: 0.72rem; font-weight: 700; transition: all 0.2s; letter-spacing: 0.04em; white-space: nowrap; }
+.tab-btn.active { background: #c9a84c; color: #0a0e16; }
+.tab-btn:not(.active) { background: #111827; color: #64748b; border: 1px solid #1e293b; }
+.tab-btn:not(.active):hover { border-color: #c9a84c; color: #c9a84c; }
+
+.page { display: none; padding: 18px 20px; max-width: 1200px; margin: 0 auto; }
+.page.active { display: block; }
+
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+.grid3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-bottom: 14px; }
+.grid4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 14px; }
+@media(max-width:900px){ .grid2,.grid3,.grid4 { grid-template-columns: 1fr 1fr; } }
+@media(max-width:600px){ .grid2,.grid3,.grid4 { grid-template-columns: 1fr; } }
+
+.panel { background: #111827; border: 1px solid #1e293b; border-radius: 14px; padding: 18px; margin-bottom: 14px; }
+.panel-title { font-size: 0.68rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.09em; color: #c9a84c; margin-bottom: 14px; }
+
+.card { background: #111827; border: 1px solid #1e293b; border-radius: 14px; padding: 16px; position: relative; overflow: hidden; }
+.card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; }
+.card.gold::before{background:#c9a84c;} .card.blue::before{background:#60a5fa;} .card.green::before{background:#34d399;}
+.card.red::before{background:#f87171;} .card.purple::before{background:#6366f1;} .card.teal::before{background:#2dd4bf;}
+.card.orange::before{background:#fb923c;}
+.card-label { font-size:0.62rem; text-transform:uppercase; letter-spacing:0.09em; color:#475569; margin-bottom:6px; }
+.card-val { font-size:2rem; font-weight:900; line-height:1.1; }
+.card-sub { font-size:0.68rem; color:#64748b; margin-top:4px; line-height:1.5; }
+.card-bar { height:4px; border-radius:99px; background:#0d1117; margin-top:10px; overflow:hidden; }
+.card-bar-fill { height:100%; border-radius:99px; transition:width 1s ease; }
+
+.clear-pill { background:#111827; border:1px solid #1e293b; border-radius:12px; padding:14px; text-align:center; }
+.cp-letter { font-size:1.6rem; font-weight:900; line-height:1; margin-bottom:4px; }
+.cp-name { font-size:0.6rem; color:#475569; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:8px; }
+.cp-score { font-size:1.2rem; font-weight:900; }
+.cp-bar { height:4px; border-radius:99px; background:#0d1117; margin-top:8px; overflow:hidden; }
+.cp-bar-fill { height:100%; border-radius:99px; transition:width 1s ease; }
+
+.tip-box { background:linear-gradient(135deg,#111827,#0d1117); border:1px solid #c9a84c44; border-left:3px solid #c9a84c; border-radius:0 12px 12px 0; padding:14px 16px; margin-bottom:12px; }
+.tip-box .tip-label { font-size:0.6rem; text-transform:uppercase; letter-spacing:0.09em; color:#c9a84c; margin-bottom:5px; font-weight:700; }
+.tip-box .tip-text { font-size:0.76rem; color:#e2e8f0; line-height:1.65; }
+.tip-box.blue{border-left-color:#60a5fa;} .tip-box.blue .tip-label{color:#60a5fa;}
+.tip-box.green{border-left-color:#34d399;} .tip-box.green .tip-label{color:#34d399;}
+.tip-box.red{border-left-color:#f87171;} .tip-box.red .tip-label{color:#f87171;}
+.tip-box.purple{border-left-color:#6366f1;} .tip-box.purple .tip-label{color:#6366f1;}
+.tip-box.teal{border-left-color:#2dd4bf;} .tip-box.teal .tip-label{color:#2dd4bf;}
+.tip-box.orange{border-left-color:#fb923c;} .tip-box.orange .tip-label{color:#fb923c;}
+
+.avatar-banner { background:linear-gradient(135deg,#111827,#0a0e16); border:1px solid #c9a84c44; border-radius:14px; padding:18px 20px; margin-bottom:14px; }
+.avatar-banner .ab-label { font-size:0.6rem; text-transform:uppercase; letter-spacing:0.09em; color:#c9a84c; margin-bottom:6px; font-weight:700; }
+.avatar-banner .ab-text { font-size:0.8rem; color:#e2e8f0; line-height:1.7; font-style:italic; }
+
+.nn-item { background:#0d1117; border-radius:10px; padding:12px 14px; margin-bottom:8px; display:flex; align-items:center; gap:12px; }
+.nn-num { width:24px; height:24px; border-radius:50%; background:#c9a84c; color:#0a0e16; font-size:0.7rem; font-weight:900; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.nn-text { font-size:0.75rem; color:#e2e8f0; flex:1; }
+.nn-score { font-size:0.85rem; font-weight:900; }
+
+.tl-row { display:flex; align-items:center; gap:10px; background:#0d1117; border-radius:8px; padding:10px 12px; margin-bottom:8px; }
+.tl-dot { width:12px; height:12px; border-radius:50%; flex-shrink:0; }
+.tl-dot.red{background:#f87171;} .tl-dot.amber{background:#fbbf24;} .tl-dot.green{background:#34d399;} .tl-dot.grey{background:#475569;}
+.tl-name { font-size:0.73rem; color:#e2e8f0; flex:1; }
+.tl-status { font-size:0.65rem; font-weight:700; }
+
+.tracker-row { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+.tracker-label { font-size:0.7rem; color:#94a3b8; width:130px; flex-shrink:0; }
+.tracker-track { flex:1; height:8px; background:#0d1117; border-radius:99px; overflow:hidden; }
+.tracker-fill { height:100%; border-radius:99px; }
+.tracker-val { font-size:0.72rem; font-weight:700; width:60px; text-align:right; flex-shrink:0; }
+
+.derek-window { display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; gap:3px; border-radius:10px; overflow:hidden; height:200px; }
+.dw-zone { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:10px; text-align:center; position:relative; }
+.dw-zone.active { outline:2px solid white; z-index:1; }
+.dw-zone .zone-name { font-size:0.72rem; font-weight:900; margin-bottom:3px; }
+.dw-zone .zone-desc { font-size:0.58rem; opacity:0.7; line-height:1.3; }
+.zone-fire { background:linear-gradient(135deg,#064e3b,#065f46); color:#34d399; }
+.zone-chook { background:linear-gradient(135deg,#1e3a5f,#1e2a4a); color:#60a5fa; }
+.zone-stress { background:linear-gradient(135deg,#3b1f00,#2d1800); color:#fbbf24; }
+.zone-derek-mode { background:linear-gradient(135deg,#3b0f0f,#2d0a0a); color:#f87171; }
+.dw-labels { display:flex; justify-content:space-between; font-size:0.58rem; color:#475569; margin-top:5px; }
+
+.win-box { background:#052e1c; border:1px solid #34d39933; border-radius:10px; padding:12px 14px; margin-bottom:8px; }
+.win-box .win-label { font-size:0.6rem; color:#34d399; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:4px; }
+.win-box .win-text { font-size:0.76rem; color:#e2e8f0; line-height:1.6; }
+
+.blocker-box { background:#2d0f0f; border:1px solid #f8717133; border-radius:10px; padding:12px 14px; margin-bottom:8px; }
+.blocker-box .bl-label { font-size:0.6rem; color:#f87171; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:4px; }
+.blocker-box .bl-text { font-size:0.76rem; color:#e2e8f0; line-height:1.6; }
+
+.commitment-box { background:linear-gradient(135deg,#14103d,#0a0e16); border:1px solid #6366f144; border-radius:12px; padding:16px 18px; }
+.commitment-box .c-label { font-size:0.6rem; color:#6366f1; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:6px; }
+.commitment-box .c-text { font-size:0.85rem; color:#e2e8f0; line-height:1.6; font-style:italic; }
+
+.empty-state { text-align:center; padding:24px; color:#475569; font-size:0.75rem; line-height:1.8; }
+.empty-state strong { color:#64748b; display:block; margin-bottom:4px; }
+
+.section-title { font-size:1rem; font-weight:900; color:#f1f5f9; margin-bottom:4px; }
+.section-sub { font-size:0.72rem; color:#475569; margin-bottom:16px; line-height:1.6; }
+
+.week-badge { display:inline-block; background:#1e293b; border:1px solid #334155; border-radius:99px; padding:3px 10px; font-size:0.65rem; color:#64748b; margin-bottom:14px; }
+
+.no-data { font-size:0.7rem; color:#475569; font-style:italic; padding:6px 0; }
+
+/* TREND CHART */
+.trend-wrap { position:relative; height:180px; margin-top:8px; }
+
+/* STREAK BARS */
+.streak-bar { display:flex; gap:4px; margin-top:6px; }
+.streak-cell { flex:1; height:32px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:0.6rem; font-weight:700; flex-direction:column; gap:1px; }
+.streak-cell.hit { background:#064e3b; color:#34d399; border:1px solid #34d39933; }
+.streak-cell.miss { background:#3b1e1e; color:#f87171; border:1px solid #f8717133; }
+.streak-cell.partial { background:#2d2a1a; color:#fbbf24; border:1px solid #fbbf2433; }
+.streak-cell.none { background:#1e293b; color:#475569; }
+
+/* TIMELINE */
+.timeline-item { display:flex; gap:12px; align-items:flex-start; padding-bottom:14px; position:relative; }
+.timeline-item:not(:last-child)::after { content:''; position:absolute; left:16px; top:34px; bottom:0; width:2px; background:#1e293b; }
+.tl-circle { width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:0.62rem; font-weight:900; flex-shrink:0; }
+.tl-content { flex:1; background:#0d1117; border-radius:10px; padding:12px 14px; }
+.tl-week { font-size:0.6rem; color:#475569; margin-bottom:4px; }
+.tl-note { font-size:0.73rem; color:#94a3b8; line-height:1.6; }
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-logo">NOT TODAY DEREK.</div>
+  <div class="loading-sub">Loading Blair's dashboard...</div>
+  <div class="loading-bar-track"><div class="loading-bar-fill"></div></div>
+</div>
+
+<div class="nav">
+  <div>
+    <div class="nav-logo">NOT TODAY <span>DEREK.</span></div>
+    <div class="nav-client" id="nav-client">Personal Coaching — Blair</div>
+  </div>
+  <div class="nav-right">
+    <button class="sync-btn" onclick="loadData()">↻ Sync</button>
+    <span class="sync-status" id="syncStatus">Not synced</span>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="showPage('home',this)">🏠 Home</button>
+  <button class="tab-btn" onclick="showPage('c',this)">C — Connection</button>
+  <button class="tab-btn" onclick="showPage('l',this)">L — Lifestyle</button>
+  <button class="tab-btn" onclick="showPage('e',this)">E — Exploration</button>
+  <button class="tab-btn" onclick="showPage('a',this)">A — Attitude</button>
+  <button class="tab-btn" onclick="showPage('r',this)">R — Routine</button>
+  <button class="tab-btn" onclick="showPage('trends',this)">↑ Trends</button>
+  <button class="tab-btn" onclick="showPage('challenges',this)">⚡ Challenges</button>
+  <button class="tab-btn" onclick="showPage('tips',this)">💡 Tips</button>
+</div>
+
+<!-- ══ HOME ══ -->
+<div class="page active" id="page-home">
+  <div id="avatar-section"></div>
+
+  <div class="grid4" id="home-stats">
+    <div class="card gold"><div class="card-label">Overall CLEAR Score</div><div class="card-val" style="color:#c9a84c;" id="home-overall">—</div><div class="card-sub" id="home-overall-sub">Awaiting first check-in</div><div class="card-bar"><div class="card-bar-fill" id="home-overall-bar" style="background:#c9a84c;width:0%;"></div></div></div>
+    <div class="card purple"><div class="card-label">DEREK. Window</div><div class="card-val" style="color:#6366f1;font-size:1.1rem;" id="home-window">—</div><div class="card-sub" id="home-window-sub">This week's position</div></div>
+    <div class="card green"><div class="card-label">Commitment Last Week</div><div class="card-val" style="color:#34d399;font-size:1rem;" id="home-commitment">—</div><div class="card-sub" id="home-commitment-sub"></div></div>
+    <div class="card blue"><div class="card-label">Weeks in Program</div><div class="card-val" style="color:#60a5fa;" id="home-weeks">—</div><div class="card-sub">Check-ins completed</div></div>
+  </div>
+
+  <!-- CLEAR PILLS -->
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:14px;" id="clear-pills">
+    <div class="clear-pill"><div class="cp-letter" style="color:#60a5fa;">C</div><div class="cp-name">Connection</div><div class="cp-score" style="color:#60a5fa;" id="pill-c">—</div><div class="cp-bar"><div class="cp-bar-fill" id="pill-bar-c" style="background:#60a5fa;width:0%;"></div></div></div>
+    <div class="clear-pill"><div class="cp-letter" style="color:#34d399;">L</div><div class="cp-name">Lifestyle</div><div class="cp-score" style="color:#34d399;" id="pill-l">—</div><div class="cp-bar"><div class="cp-bar-fill" id="pill-bar-l" style="background:#34d399;width:0%;"></div></div></div>
+    <div class="clear-pill"><div class="cp-letter" style="color:#fb923c;">E</div><div class="cp-name">Exploration</div><div class="cp-score" style="color:#fb923c;" id="pill-e">—</div><div class="cp-bar"><div class="cp-bar-fill" id="pill-bar-e" style="background:#fb923c;width:0%;"></div></div></div>
+    <div class="clear-pill"><div class="cp-letter" style="color:#f87171;">A</div><div class="cp-name">Attitude</div><div class="cp-score" style="color:#f87171;" id="pill-a">—</div><div class="cp-bar"><div class="cp-bar-fill" id="pill-bar-a" style="background:#f87171;width:0%;"></div></div></div>
+    <div class="clear-pill"><div class="cp-letter" style="color:#6366f1;">R</div><div class="cp-name">Routine</div><div class="cp-score" style="color:#6366f1;" id="pill-r">—</div><div class="cp-bar"><div class="cp-bar-fill" id="pill-bar-r" style="background:#6366f1;width:0%;"></div></div></div>
+  </div>
+
+  <div class="grid2">
+    <div>
+      <div class="panel">
+        <div class="panel-title">Win & Blocker This Week</div>
+        <div id="home-win"><div class="empty-state"><strong>No data yet</strong>Complete the weekly check-in to see your win here.</div></div>
+        <div id="home-blocker"></div>
+      </div>
+      <div class="commitment-box">
+        <div class="c-label">📌 This Week's Commitment</div>
+        <div class="c-text" id="home-this-commitment">Complete your first weekly check-in to set your commitment.</div>
+      </div>
+    </div>
+    <div>
+      <div class="panel">
+        <div class="panel-title">Personalised Tips This Week</div>
+        <div id="home-tips"><div class="empty-state"><strong>Tips generate after first check-in</strong>Based on your scores each week, Wade's system will generate personalised actions for you here.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NON NEGOTIABLES -->
+  <div class="panel">
+    <div class="panel-title">Your Non-Negotiables — This Week</div>
+    <div id="home-nn"><div class="empty-state"><strong>Complete your onboarding first</strong>Your personal non-negotiables will appear here once Blair submits the onboarding form.</div></div>
+  </div>
+</div>
+
+<!-- ══ C — CONNECTION ══ -->
+<div class="page" id="page-c">
+  <div class="section-title" style="color:#60a5fa;">C — Connection</div>
+  <div class="section-sub">The quality of your relationships with yourself and others. How present, honest and connected were you this week?</div>
+  <div class="grid2">
+    <div class="panel">
+      <div class="panel-title">Relationship Traffic Lights</div>
+      <div id="c-traffic"><div class="empty-state"><strong>No data yet</strong>Complete the weekly check-in to see your relationship audit here.</div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Connection Scores</div>
+      <div id="c-scores"><div class="empty-state"><strong>No data yet</strong></div></div>
+      <div id="c-tip"></div>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-title">Wade's Note — Connection</div>
+    <div id="c-note"><div class="no-data">No coach note yet for this pillar.</div></div>
+  </div>
+</div>
+
+<!-- ══ L — LIFESTYLE ══ -->
+<div class="page" id="page-l">
+  <div class="section-title" style="color:#34d399;">L — Lifestyle</div>
+  <div class="section-sub">Your body is the vehicle. How well did you fuel, move and recover it this week?</div>
+  <div class="grid2">
+    <div class="panel">
+      <div class="panel-title">Movement & Exercise</div>
+      <div id="l-movement"><div class="empty-state"><strong>No data yet</strong></div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Daily Non-Negotiables</div>
+      <div id="l-nonneg"><div class="empty-state"><strong>No data yet</strong></div></div>
+      <div id="l-tip"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ E — EXPLORATION ══ -->
+<div class="page" id="page-e">
+  <div class="section-title" style="color:#fb923c;">E — Exploration</div>
+  <div class="section-sub">Exploration is the antidote to burnout. Are you living — or just working?</div>
+  <div class="grid2">
+    <div class="panel">
+      <div class="panel-title">Exploration This Week</div>
+      <div id="e-scores"><div class="empty-state"><strong>No data yet</strong></div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Memory & Adventure</div>
+      <div id="e-memory"><div class="empty-state"><strong>No data yet</strong></div></div>
+      <div id="e-tip"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ A — ATTITUDE ══ -->
+<div class="page" id="page-a">
+  <div class="section-title" style="color:#f87171;">A — Attitude</div>
+  <div class="section-sub">Your mindset is the lens through which everything else is filtered.</div>
+  <div class="grid2">
+    <div class="panel">
+      <div class="panel-title">DEREK. Window — This Week</div>
+      <div id="a-window"><div class="empty-state"><strong>No data yet</strong></div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Mindset Scores</div>
+      <div id="a-scores"><div class="empty-state"><strong>No data yet</strong></div></div>
+      <div id="a-tip"></div>
+    </div>
+  </div>
+  <div class="panel" id="a-flip-panel" style="display:none;">
+    <div class="panel-title">Flip the Script This Week</div>
+    <div id="a-flip"></div>
+  </div>
+</div>
+
+<!-- ══ R — ROUTINE ══ -->
+<div class="page" id="page-r">
+  <div class="section-title" style="color:#6366f1;">R — Routine</div>
+  <div class="section-sub">Discipline is freedom. How consistent were your systems this week?</div>
+  <div class="grid2">
+    <div class="panel">
+      <div class="panel-title">Morning & Evening Routine</div>
+      <div id="r-routines"><div class="empty-state"><strong>No data yet</strong></div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Weekly Systems</div>
+      <div id="r-systems"><div class="empty-state"><strong>No data yet</strong></div></div>
+      <div id="r-tip"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TRENDS ══ -->
+<div class="page" id="page-trends">
+  <div class="section-title" style="color:#34d399;">Trends — Progress Over Time</div>
+  <div class="section-sub">This is your proof. Every week you show up, the data builds. Watch your scores move.</div>
+
+  <div class="panel">
+    <div class="panel-title">CLEAR Score — Week by Week</div>
+    <div class="trend-wrap"><canvas id="trendChart" style="width:100%;height:180px;"></canvas></div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;" id="trend-legend"></div>
+  </div>
+
+  <div class="grid4" id="trend-stats">
+    <div class="card green"><div class="card-label">Biggest Growth</div><div class="card-val" style="color:#34d399;font-size:1.3rem;" id="trend-best">—</div><div class="card-sub" id="trend-best-sub"></div></div>
+    <div class="card red"><div class="card-label">Needs Attention</div><div class="card-val" style="color:#f87171;font-size:1.3rem;" id="trend-worst">—</div><div class="card-sub">Lowest average score</div></div>
+    <div class="card gold"><div class="card-label">Weeks in Fire Zone</div><div class="card-val" style="color:#c9a84c;" id="trend-firezone">—</div><div class="card-sub" id="trend-firezone-sub"></div></div>
+    <div class="card purple"><div class="card-label">Momentum</div><div class="card-val" style="color:#6366f1;font-size:1.3rem;" id="trend-momentum">—</div><div class="card-sub" id="trend-momentum-sub"></div></div>
+  </div>
+
+  <div class="grid2">
+    <div class="panel">
+      <div class="panel-title">DEREK. Window — Weekly History</div>
+      <div id="trend-window-history"><div class="empty-state"><strong>No data yet</strong>DEREK Window history builds week by week.</div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Commitment Follow-Through</div>
+      <div id="trend-commitments"><div class="empty-state"><strong>No data yet</strong>Commitment tracking builds after Week 2.</div></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">Coach's Notes — Timeline</div>
+    <div id="trend-notes"><div class="empty-state"><strong>No notes yet</strong>Wade's weekly notes will appear here in chronological order.</div></div>
+  </div>
+</div>
+
+<script>
+const SHEET_ID = '1fj7nrfWS0OgmbVLOF-_KOEIJUgz2W43PV_L-YqHysJc';
+const APPS_URL = 'https://script.google.com/macros/s/AKfycbwukN6qP28-jFuVs0WMKX39IIZ2nvziDJrbqbZ0HL5xTUISEzPv5CcwwauEujzQglrc1g/exec';
+
+let onboarding = null;
+let checkins = [];
+
+async function fetchSheet(name) {
+  try {
+    const r = await fetch(`${APPS_URL}?sheet=${encodeURIComponent(name)}&sheetId=${SHEET_ID}`);
+    if (!r.ok) return [];
+    return await r.json();
+  } catch(e) { console.error(e); return []; }
+}
+
+function avg(arr) {
+  const v = arr.filter(x => x !== null && x !== '' && !isNaN(x)).map(Number);
+  return v.length ? v.reduce((a,b)=>a+b,0)/v.length : null;
+}
+function fmt(n, dec=1) { return n===null ? '—' : parseFloat(n).toFixed(dec); }
+function pct(n, max=10) { return n===null ? 0 : Math.min(Math.max((n/max)*100,0),100); }
+function col(n) { return n===null?'#475569':n>=7?'#34d399':n>=5?'#fbbf24':'#f87171'; }
+
+function parseOnboarding(rows) {
+  if (!rows || rows.length < 2) return null;
+  const h = rows[0]; const r = rows[1];
+  const get = (label) => {
+    const i = h.findIndex(x => x && x.toString().toLowerCase().includes(label.toLowerCase()));
+    return i >= 0 ? r[i] : '';
+  };
+  return {
+    name: get('Full Name') || get('name'),
+    avatar: get('Avatar') || get('best version'),
+    why: get('WHY'),
+    nn1: get('Non-Negotiable 1'),
+    nn2: get('Non-Negotiable 2'),
+    nn3: get('Non-Negotiable 3'),
+    derekDesc: get('DEREK look like'),
+    baseC: parseFloat(get('Connection')) || null,
+    baseL: parseFloat(get('Lifestyle')) || null,
+    baseE: parseFloat(get('Exploration')) || null,
+    baseA: parseFloat(get('Attitude')) || null,
+    baseR: parseFloat(get('Routine')) || null,
+  };
+}
+
+function parseCheckins(rows) {
+  if (!rows || rows.length < 2) return [];
+  const h = rows[0];
+  const get = (r, label) => {
+    const i = h.findIndex(x => x && x.toString().toLowerCase().includes(label.toLowerCase()));
+    return i >= 0 ? r[i] : '';
+  };
+  return rows.slice(1).filter(r => r[0]).map(r => ({
+    timestamp: r[0],
+    lastCommitment: get(r,'committed to'),
+    followThrough: get(r,'follow through'),
+    nn1Score: parseFloat(get(r,'Non-Negotiable 1')) || null,
+    nn2Score: parseFloat(get(r,'Non-Negotiable 2')) || null,
+    nn3Score: parseFloat(get(r,'Non-Negotiable 3')) || null,
+    presence: parseFloat(get(r,'present were you')) || null,
+    honestComms: parseFloat(get(r,'communicate honestly')) || null,
+    avoidConvo: get(r,'avoid any'),
+    tlPartner: get(r,'Partner'),
+    tlFamily: get(r,'Family'),
+    tlChildren: get(r,'Children'),
+    tlFriends: get(r,'Friends'),
+    tlSelf: get(r,'Yourself'),
+    exerciseDays: get(r,'exercise or movement'),
+    water: get(r,'water intake'),
+    sleep: get(r,'sleep'),
+    nutrition: parseFloat(get(r,'nutrition')) || null,
+    energy: parseFloat(get(r,'energy levels')) || null,
+    outsideRoutine: get(r,'outside your normal'),
+    outdoors: get(r,'outdoors'),
+    screenBalance: parseFloat(get(r,'screen time')) || null,
+    memory: get(r,'memory'),
+    window: get(r,'DEREK Window'),
+    selfTalk: parseFloat(get(r,'self-talk')) || null,
+    ownership: parseFloat(get(r,'ownership')) || null,
+    gratitude: get(r,'gratitude'),
+    flipScript: get(r,'flip'),
+    morningRoutine: parseFloat(get(r,'morning routine')) || null,
+    eveningRoutine: parseFloat(get(r,'evening routine')) || null,
+    sundayReset: get(r,'sunday'),
+    bigThree: get(r,'big 3') || get(r,'daily big'),
+    win: get(r,'win of the week') || get(r,'proud'),
+    blocker: get(r,'got in the way'),
+    handleIt: get(r,'handle it'),
+    momentum: parseFloat(get(r,'momentum')) || null,
+    howDoing: get(r,'really doing'),
+    thisCommitment: get(r,'this week i commit') || get(r,'commit to'),
+  }));
+}
+
+function calcScores(ci) {
+  const scoreMap = { '0 days':0,'1 day':2,'2 days':4,'3 days':6,'4 days':8,'5+ days':10 };
+  const waterMap = {'Less than 1L':2,'Around 1–1.5L':4,'Around 1.5–2L':7,'2L or more':10};
+  const sleepMap = {'Less than 6 hours':2,'6–7 hours':5,'7–8 hours':8,'8+ hours':10};
+  const exercise = scoreMap[ci.exerciseDays] || null;
+  const water = waterMap[ci.water] || null;
+  const sleep = sleepMap[ci.sleep] || null;
+  const C = avg([ci.presence, ci.honestComms]);
+  const L = avg([exercise, water, sleep, ci.nutrition, ci.energy]);
+  const outsideScore = ci.outsideRoutine && ci.outsideRoutine.includes('Yes') ? 8 : ci.outsideRoutine && ci.outsideRoutine.includes('Sort') ? 5 : ci.outsideRoutine ? 2 : null;
+  const memScore = ci.memory && ci.memory.includes('Yes') ? 9 : ci.memory && ci.memory.includes('small') ? 5 : ci.memory ? 2 : null;
+  const E = avg([outsideScore, ci.screenBalance, memScore]);
+  const A = avg([ci.selfTalk, ci.ownership]);
+  const R = avg([ci.morningRoutine, ci.eveningRoutine]);
+  const all = [C,L,E,A,R].filter(v=>v!==null);
+  const overall = all.length ? all.reduce((a,b)=>a+b,0)/all.length : null;
+  return { C, L, E, A, R, overall };
+}
+
+function tlDot(val) {
+  if (!val) return { cls:'grey', label:'Not answered', color:'#475569' };
+  if (val.includes('Red') || val.includes('🔴')) return { cls:'red', label:'Needs attention', color:'#f87171' };
+  if (val.includes('Amber') || val.includes('🟡')) return { cls:'amber', label:'Drifting', color:'#fbbf24' };
+  if (val.includes('Green') || val.includes('🟢')) return { cls:'green', label:'Strong', color:'#34d399' };
+  return { cls:'grey', label:val, color:'#475569' };
+}
+
+function windowZone(val) {
+  if (!val) return null;
+  if (val.includes('Fire')) return { label:'🔥 Fire Zone', color:'#34d399', desc:'High action + high accountability. This is where your best self lives.' };
+  if (val.includes('Chook') || val.includes('Headless')) return { label:'🐔 Headless Chook', color:'#60a5fa', desc:'You\'re busy but not accountable. Slow down and prioritise what matters most.' };
+  if (val.includes('Stress')) return { label:'😰 Stress Zone', color:'#fbbf24', desc:'You know what to do but you\'re not doing it. Pick one thing and start today.' };
+  if (val.includes('DEREK') || val.includes('Full')) return { label:'😶 Full DEREK Mode', color:'#f87171', desc:'Low action, low accountability. One small step today. Just one.' };
+  return null;
+}
+
+function generateTips(scores, ci) {
+  const tips = [];
+  const pillars = [
+    { key:'C', label:'Connection', color:'blue', icon:'🤝' },
+    { key:'L', label:'Lifestyle', color:'green', icon:'💪' },
+    { key:'E', label:'Exploration', color:'orange', icon:'🌍' },
+    { key:'A', label:'Attitude', color:'red', icon:'🧠' },
+    { key:'R', label:'Routine', color:'purple', icon:'📋' },
+  ];
+  const tipMap = {
+    C: {
+      low: 'Your Connection score is your priority this week. One honest conversation you\'ve been avoiding — have it before your next session.',
+      mid: 'Connection is building. Reach out to someone you haven\'t spoken to properly in a while. Not a text — a real conversation.',
+      high: 'Your connections are strong this week. Keep showing up with presence — especially for the people who matter most.'
+    },
+    L: {
+      low: 'Lifestyle needs attention. Start with the basics — 2L of water today. That one habit shifts energy, focus and mood within days.',
+      mid: 'Movement is good. Water and sleep are where DEREK is still winning. Pick one to lock in as a non-negotiable this week.',
+      high: 'Lifestyle is tracking well. Your body is fuelled and moving. Now make sure recovery is part of the plan — not just output.'
+    },
+    E: {
+      low: 'Exploration is your lowest score. When did you last do something that had nothing to do with work? This week — one thing. Lock it in.',
+      mid: 'Get outside more. A 30 minute walk somewhere new, a coffee somewhere different — small breaks from routine fuel everything else.',
+      high: 'You\'re living boldly this week. Keep the Adventure List moving — what\'s the next experience you\'re locking in?'
+    },
+    A: {
+      low: 'DEREK is loud this week. Every time you catch a negative thought — stop and flip it. Write it down. What would your Avatar say instead?',
+      mid: 'Attitude is developing. Ownership is the key — one moment this week where you catch an excuse and choose a response instead.',
+      high: 'Mindset is strong. Your Avatar is in charge this week. Keep the gratitude practice going — it\'s doing its job.'
+    },
+    R: {
+      low: 'Routine is where DEREK wins first. Own the first 30 minutes of tomorrow morning. No phone. Water. Move. Plan the day. That\'s it.',
+      mid: 'Morning routine is building. The evening is where it falls apart — one screen-free hour before bed this week. That\'s your target.',
+      high: 'Routine is your strongest pillar. Your systems are working. The Sunday Reset is compounding — keep it locked in every week.'
+    }
+  };
+  pillars.forEach(p => {
+    const s = scores[p.key];
+    const lvl = s === null ? null : s >= 7 ? 'high' : s >= 5 ? 'mid' : 'low';
+    if (lvl) tips.push({ ...p, score: s, tip: tipMap[p.key][lvl] });
+  });
+  tips.sort((a,b) => (a.score||10) - (b.score||10));
+  return tips;
+}
+
+function renderHome() {
+  const latest = checkins[checkins.length - 1];
+  const scores = latest ? calcScores(latest) : null;
+
+  // Avatar banner
+  const avatarEl = document.getElementById('avatar-section');
+  if (onboarding && onboarding.avatar) {
+    avatarEl.innerHTML = `<div class="avatar-banner"><div class="ab-label">🎯 Your Avatar — Who You Are Becoming</div><div class="ab-text">${onboarding.avatar}</div></div>`;
+  }
+
+  // Stats
+  if (scores) {
+    const s = scores.overall;
+    document.getElementById('home-overall').textContent = fmt(s);
+    document.getElementById('home-overall-sub').textContent = s >= 7 ? '↑ Strong week' : s >= 5 ? '→ Building momentum' : '↓ Focus needed';
+    document.getElementById('home-overall-bar').style.width = pct(s) + '%';
+    document.getElementById('home-overall-bar').style.background = col(s);
+  }
+  document.getElementById('home-weeks').textContent = checkins.length;
+
+  if (latest) {
+    const zone = windowZone(latest.window);
+    document.getElementById('home-window').textContent = zone ? zone.label : '—';
+    document.getElementById('home-window').style.color = zone ? zone.color : '#475569';
+
+    const ft = latest.followThrough;
+    document.getElementById('home-commitment').textContent = ft && ft.includes('Yes') ? '✅ Done' : ft && ft.includes('Mostly') ? '🟡 Mostly' : ft && ft.includes('No') ? '❌ Not yet' : '—';
+    document.getElementById('home-commitment-sub').textContent = latest.lastCommitment || '';
+    document.getElementById('home-this-commitment').textContent = latest.thisCommitment || 'No commitment set yet.';
+
+    if (latest.win) {
+      document.getElementById('home-win').innerHTML = `<div class="win-box"><div class="win-label">🏆 Win of the Week</div><div class="win-text">${latest.win}</div></div>`;
+    }
+    if (latest.blocker) {
+      document.getElementById('home-blocker').innerHTML = `<div class="blocker-box"><div class="bl-label">🚧 What Got in the Way</div><div class="bl-text">${latest.blocker}</div></div>`;
+    }
+  }
+
+  // CLEAR pills
+  if (scores) {
+    const pillars = [{k:'C',col:'#60a5fa'},{k:'L',col:'#34d399'},{k:'E',col:'#fb923c'},{k:'A',col:'#f87171'},{k:'R',col:'#6366f1'}];
+    pillars.forEach(p => {
+      const el = document.getElementById('pill-'+p.k.toLowerCase());
+      if(el) el.textContent = fmt(scores[p.k]);
+      const bar = document.getElementById('pill-bar-'+p.k.toLowerCase());
+      if(bar) { bar.style.width = pct(scores[p.k])+'%'; bar.style.background = col(scores[p.k]); }
+    });
+  }
+
+  // Non-negotiables
+  if (onboarding && (onboarding.nn1 || onboarding.nn2 || onboarding.nn3)) {
+    const nns = [onboarding.nn1, onboarding.nn2, onboarding.nn3];
+    const scores_nn = latest ? [latest.nn1Score, latest.nn2Score, latest.nn3Score] : [null,null,null];
+    document.getElementById('home-nn').innerHTML = nns.map((nn,i) => nn ? `
+      <div class="nn-item">
+        <div class="nn-num">${i+1}</div>
+        <div class="nn-text">${nn}</div>
+        <div class="nn-score" style="color:${col(scores_nn[i])};">${scores_nn[i] !== null ? scores_nn[i]+'/10' : '—'}</div>
+      </div>` : '').join('');
+  }
+
+  // Tips
+  if (scores && latest) {
+    const tips = generateTips(scores, latest);
+    document.getElementById('home-tips').innerHTML = tips.slice(0,4).map(t =>
+      `<div class="tip-box ${t.color}"><div class="tip-label">${t.icon} ${t.label} — ${fmt(t.score)}/10</div><div class="tip-text">${t.tip}</div></div>`
+    ).join('');
+  }
+}
+
+function renderConnection() {
+  const latest = checkins[checkins.length-1];
+  if (!latest) return;
+  const relationships = [
+    { name:'Partner / Significant Other', val:latest.tlPartner },
+    { name:'Family', val:latest.tlFamily },
+    { name:'Children', val:latest.tlChildren },
+    { name:'Close Friends', val:latest.tlFriends },
+    { name:'Relationship with Yourself', val:latest.tlSelf },
+  ];
+  document.getElementById('c-traffic').innerHTML = relationships.map(r => {
+    const d = tlDot(r.val);
+    return `<div class="tl-row"><div class="tl-dot ${d.cls}"></div><div class="tl-name">${r.name}</div><div class="tl-status" style="color:${d.color};">${d.label}</div></div>`;
+  }).join('');
+
+  document.getElementById('c-scores').innerHTML = [
+    { label:'Presence in relationships', val:latest.presence },
+    { label:'Honest communication', val:latest.honestComms },
+  ].map(s => `
+    <div class="tracker-row">
+      <div class="tracker-label">${s.label}</div>
+      <div class="tracker-track"><div class="tracker-fill" style="width:${pct(s.val)}%;background:${col(s.val)};"></div></div>
+      <div class="tracker-val" style="color:${col(s.val)};">${fmt(s.val)}/10</div>
+    </div>`).join('');
+
+  const scores = calcScores(latest);
+  const tips = generateTips(scores, latest);
+  const cTip = tips.find(t => t.key === 'C');
+  if (cTip) document.getElementById('c-tip').innerHTML = `<div class="tip-box blue" style="margin-top:12px;"><div class="tip-label">💡 Connection Tip This Week</div><div class="tip-text">${cTip.tip}</div></div>`;
+}
+
+function renderLifestyle() {
+  const latest = checkins[checkins.length-1];
+  if (!latest) return;
+  document.getElementById('l-movement').innerHTML = `
+    <div style="margin-bottom:12px;"><div style="font-size:0.68rem;color:#475569;margin-bottom:8px;">DAYS ACTIVE THIS WEEK</div>
+    <div style="font-size:1.8rem;font-weight:900;color:#34d399;">${latest.exerciseDays || '—'}</div></div>`;
+
+  const items = [
+    { label:'💧 Water intake', val:latest.water, target:'2L or more', hit: latest.water && latest.water.includes('2L') },
+    { label:'😴 Sleep per night', val:latest.sleep, target:'7–8 hours', hit: latest.sleep && (latest.sleep.includes('7–8') || latest.sleep.includes('8+')) },
+    { label:'🥗 Nutrition quality', val:fmt(latest.nutrition)+'/10', target:'7+', hit: latest.nutrition >= 7 },
+    { label:'⚡ Energy levels', val:fmt(latest.energy)+'/10', target:'7+', hit: latest.energy >= 7 },
+  ];
+  document.getElementById('l-nonneg').innerHTML = items.map(item => `
+    <div class="tracker-row">
+      <div class="tracker-label">${item.label}</div>
+      <div class="nn-text" style="font-size:0.73rem;color:#e2e8f0;">${item.val}</div>
+      <div style="font-size:0.65rem;color:${item.hit?'#34d399':'#f87171'};">${item.hit?'✅':'—'}</div>
+    </div>`).join('');
+
+  const scores = calcScores(latest);
+  const tips = generateTips(scores, latest);
+  const lTip = tips.find(t => t.key === 'L');
+  if (lTip) document.getElementById('l-tip').innerHTML = `<div class="tip-box green" style="margin-top:12px;"><div class="tip-label">💡 Lifestyle Tip This Week</div><div class="tip-text">${lTip.tip}</div></div>`;
+}
+
+function renderExploration() {
+  const latest = checkins[checkins.length-1];
+  if (!latest) return;
+  document.getElementById('e-scores').innerHTML = `
+    <div class="tracker-row"><div class="tracker-label">Screen vs real life</div><div class="tracker-track"><div class="tracker-fill" style="width:${pct(latest.screenBalance)}%;background:#fb923c;"></div></div><div class="tracker-val" style="color:#fb923c;">${fmt(latest.screenBalance)}/10</div></div>
+    <div style="margin-top:12px;"><div class="nn-item"><div class="nn-text">Outside normal routine?</div><div style="font-size:0.73rem;color:#e2e8f0;">${latest.outsideRoutine||'—'}</div></div>
+    <div class="nn-item" style="margin-top:6px;"><div class="nn-text">Time outdoors</div><div style="font-size:0.73rem;color:#e2e8f0;">${latest.outdoors||'—'}</div></div></div>`;
+
+  document.getElementById('e-memory').innerHTML = `
+    <div class="nn-item"><div class="nn-text">Made a memory this week?</div><div style="font-size:0.73rem;color:${latest.memory&&latest.memory.includes('Yes')?'#34d399':'#f87171'};">${latest.memory||'—'}</div></div>`;
+
+  const scores = calcScores(latest);
+  const tips = generateTips(scores, latest);
+  const eTip = tips.find(t => t.key === 'E');
+  if (eTip) document.getElementById('e-tip').innerHTML = `<div class="tip-box orange" style="margin-top:12px;"><div class="tip-label">💡 Exploration Tip This Week</div><div class="tip-text">${eTip.tip}</div></div>`;
+}
+
+function renderAttitude() {
+  const latest = checkins[checkins.length-1];
+  if (!latest) return;
+  const zone = windowZone(latest.window);
+  if (zone) {
+    document.getElementById('a-window').innerHTML = `
+      <div style="padding:16px;background:#0d1117;border-radius:10px;border:2px solid ${zone.color};text-align:center;margin-bottom:12px;">
+        <div style="font-size:1.5rem;font-weight:900;color:${zone.color};margin-bottom:8px;">${zone.label}</div>
+        <div style="font-size:0.75rem;color:#94a3b8;line-height:1.6;">${zone.desc}</div>
+      </div>`;
+  }
+
+  document.getElementById('a-scores').innerHTML = [
+    { label:'Self-talk quality', val:latest.selfTalk },
+    { label:'Ownership — no excuses', val:latest.ownership },
+  ].map(s => `
+    <div class="tracker-row">
+      <div class="tracker-label">${s.label}</div>
+      <div class="tracker-track"><div class="tracker-fill" style="width:${pct(s.val)}%;background:${col(s.val)};"></div></div>
+      <div class="tracker-val" style="color:${col(s.val)};">${fmt(s.val)}/10</div>
+    </div>`).join('') +
+    `<div class="nn-item" style="margin-top:10px;"><div class="nn-text">Gratitude practice</div><div style="font-size:0.73rem;color:#e2e8f0;">${latest.gratitude||'—'}</div></div>`;
+
+  if (latest.flipScript && latest.flipScript.trim()) {
+    document.getElementById('a-flip-panel').style.display = 'block';
+    document.getElementById('a-flip').innerHTML = `<div style="background:#0d1117;border-radius:8px;padding:14px 16px;font-size:0.76rem;color:#e2e8f0;line-height:1.7;">${latest.flipScript}</div>`;
+  }
+
+  const scores = calcScores(latest);
+  const tips = generateTips(scores, latest);
+  const aTip = tips.find(t => t.key === 'A');
+  if (aTip) document.getElementById('a-tip').innerHTML = `<div class="tip-box red" style="margin-top:12px;"><div class="tip-label">💡 Attitude Tip This Week</div><div class="tip-text">${aTip.tip}</div></div>`;
+}
+
+function renderRoutine() {
+  const latest = checkins[checkins.length-1];
+  if (!latest) return;
+  document.getElementById('r-routines').innerHTML = [
+    { label:'Morning routine', val:latest.morningRoutine },
+    { label:'Evening routine', val:latest.eveningRoutine },
+  ].map(s => `
+    <div class="tracker-row">
+      <div class="tracker-label">${s.label}</div>
+      <div class="tracker-track"><div class="tracker-fill" style="width:${pct(s.val)}%;background:#6366f1;"></div></div>
+      <div class="tracker-val" style="color:${col(s.val)};">${fmt(s.val)}/10</div>
+    </div>`).join('');
+
+  document.getElementById('r-systems').innerHTML = [
+    { label:'Sunday System Reset', val:latest.sundayReset },
+    { label:'Daily Big 3 completed', val:latest.bigThree },
+  ].map(s => `<div class="nn-item"><div class="nn-text">${s.label}</div><div style="font-size:0.73rem;color:#e2e8f0;">${s.val||'—'}</div></div>`).join('');
+
+  const scores = calcScores(latest);
+  const tips = generateTips(scores, latest);
+  const rTip = tips.find(t => t.key === 'R');
+  if (rTip) document.getElementById('r-tip').innerHTML = `<div class="tip-box purple" style="margin-top:12px;"><div class="tip-label">💡 Routine Tip This Week</div><div class="tip-text">${rTip.tip}</div></div>`;
+}
+
+function renderTrends() {
+  if (!checkins.length) return;
+  const weekScores = checkins.map((ci,i) => ({ week:`W${i+1}`, ...calcScores(ci), window:ci.window, commitment:ci.followThrough }));
+
+  // Chart
+  const canvas = document.getElementById('trendChart');
+  if (canvas && weekScores.length > 1) {
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio||1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = 180 * dpr;
+    ctx.scale(dpr,dpr);
+    const W = rect.width, H = 180;
+    const pad = {top:16,right:20,bottom:28,left:32};
+    const cW = W-pad.left-pad.right, cH = H-pad.top-pad.bottom;
+
+    ctx.strokeStyle='#1e293b'; ctx.lineWidth=0.5;
+    for(let i=0;i<=5;i++){const y=pad.top+(1-i/5)*cH;ctx.beginPath();ctx.moveTo(pad.left,y);ctx.lineTo(W-pad.right,y);ctx.stroke();ctx.fillStyle='#475569';ctx.font='10px Segoe UI';ctx.fillText((i*2).toString(),4,y+4);}
+    ctx.fillStyle='#475569';ctx.font='10px Segoe UI';ctx.textAlign='center';
+    weekScores.forEach((w,i)=>{const x=pad.left+(i/(weekScores.length-1||1))*cW;ctx.fillText(w.week,x,H-6);});
+
+    const datasets=[
+      {key:'C',color:'#60a5fa'},{key:'L',color:'#34d399'},{key:'E',color:'#fb923c'},
+      {key:'A',color:'#f87171'},{key:'R',color:'#6366f1'},{key:'overall',color:'#c9a84c',dashed:true}
+    ];
+    datasets.forEach(ds=>{
+      ctx.strokeStyle=ds.color; ctx.lineWidth=ds.dashed?1.5:2;
+      if(ds.dashed)ctx.setLineDash([5,4]);else ctx.setLineDash([]);
+      ctx.beginPath();
+      weekScores.forEach((w,i)=>{
+        const v=w[ds.key]; if(v===null)return;
+        const x=pad.left+(i/(weekScores.length-1||1))*cW;
+        const y=pad.top+(1-v/10)*cH;
+        i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+      });
+      ctx.stroke();
+      if(!ds.dashed){weekScores.forEach((w,i)=>{const v=w[ds.key];if(v===null)return;const x=pad.left+(i/(weekScores.length-1||1))*cW;const y=pad.top+(1-v/10)*cH;ctx.fillStyle=ds.color;ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);ctx.fill();});}
+      ctx.setLineDash([]);
+    });
+
+    const legendNames={C:'Connection',L:'Lifestyle',E:'Exploration',A:'Attitude',R:'Routine',overall:'Overall'};
+    document.getElementById('trend-legend').innerHTML=datasets.map(d=>`<span style="display:flex;align-items:center;gap:5px;font-size:0.65rem;"><span style="width:20px;height:3px;background:${d.color};display:inline-block;border-radius:2px;${d.dashed?'border-top:2px dashed '+d.color:''}"></span>${legendNames[d.key]}</span>`).join('');
+  }
+
+  // Stats
+  const pillarNames={C:'Connection',L:'Lifestyle',E:'Exploration',A:'Attitude',R:'Routine'};
+  const avgs={C:avg(weekScores.map(w=>w.C)),L:avg(weekScores.map(w=>w.L)),E:avg(weekScores.map(w=>w.E)),A:avg(weekScores.map(w=>w.A)),R:avg(weekScores.map(w=>w.R))};
+  const best=Object.entries(avgs).sort((a,b)=>(b[1]||0)-(a[1]||0))[0];
+  const worst=Object.entries(avgs).sort((a,b)=>(a[1]||10)-(b[1]||10))[0];
+  document.getElementById('trend-best').textContent=best?pillarNames[best[0]]:'—';
+  document.getElementById('trend-best-sub').textContent=best?`↑ Average ${fmt(best[1])}/10`:'';
+  document.getElementById('trend-worst').textContent=worst?pillarNames[worst[0]]:'—';
+  const fireWeeks=weekScores.filter(w=>w.window&&w.window.includes('Fire')).length;
+  document.getElementById('trend-firezone').textContent=`${fireWeeks}/${weekScores.length}`;
+  document.getElementById('trend-firezone-sub').textContent=`${Math.round((fireWeeks/weekScores.length)*100)}% of weeks`;
+  const first=weekScores[0]?.overall, last=weekScores[weekScores.length-1]?.overall;
+  const momentumDir=first&&last?(last>first?'↑ Up':'↓ Down'):'—';
+  document.getElementById('trend-momentum').textContent=momentumDir;
+  document.getElementById('trend-momentum-sub').textContent=first&&last?`${fmt(Math.abs(last-first))} pts since Week 1`:'';
+
+  // Window history
+  document.getElementById('trend-window-history').innerHTML=weekScores.map((w,i)=>{
+    const z=windowZone(w.window);
+    return`<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+      <div style="font-size:0.65rem;color:#475569;width:40px;flex-shrink:0;">Week ${i+1}</div>
+      <div style="flex:1;background:#0d1117;border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:8px;">
+        <div style="width:10px;height:10px;border-radius:50%;background:${z?z.color:'#475569'};flex-shrink:0;"></div>
+        <div style="font-size:0.72rem;color:${z?z.color:'#475569'};font-weight:700;">${z?z.label:'Not answered'}</div>
+      </div></div>`;
+  }).join('');
+
+  // Commitment tracking
+  document.getElementById('trend-commitments').innerHTML=checkins.slice(1).map((ci,i)=>{
+    const ft=ci.followThrough;
+    const c=ft&&ft.includes('Yes')?'#34d399':ft&&ft.includes('Mostly')?'#fbbf24':'#f87171';
+    const label=ft&&ft.includes('Yes')?'✅ Done':ft&&ft.includes('Mostly')?'🟡 Mostly':'❌ Not yet';
+    return`<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+      <div style="font-size:0.65rem;color:#475569;width:40px;">Week ${i+2}</div>
+      <div style="flex:1;background:#0d1117;border-radius:8px;padding:8px 12px;">
+        <div style="font-size:0.7rem;color:#94a3b8;">${checkins[i].thisCommitment||'No commitment recorded'}</div>
+      </div>
+      <div style="font-size:0.7rem;font-weight:700;color:${c};flex-shrink:0;">${label}</div>
+    </div>`;
+  }).join('') || '<div class="no-data">Commitment tracking starts from Week 2.</div>';
+}
+
+function renderAll() {
+  renderHome();
+  renderConnection();
+  renderLifestyle();
+  renderExploration();
+  renderAttitude();
+  renderRoutine();
+  renderTrends();
+}
+
+async function loadData() {
+  document.getElementById('syncStatus').textContent = 'Syncing...';
+  try {
+    const [onboardingRows, checkinRows] = await Promise.all([
+      fetchSheet('Onboarding'),
+      fetchSheet('Weekly Check-In')
+    ]);
+    onboarding = parseOnboarding(onboardingRows);
+    checkins = parseCheckins(checkinRows);
+    renderAll();
+    const t = new Date();
+    document.getElementById('syncStatus').textContent = 'Synced ' + t.toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'});
+  } catch(e) {
+    document.getElementById('syncStatus').textContent = 'Sync failed';
+    console.error(e);
+  }
+}
+
+
+
+window.addEventListener('load', async () => {
+  await loadData();
+  document.getElementById('loadingOverlay').style.display = 'none';
+});
+
+const CHALLENGES = [
+  // CONNECTION
+  { pillar:'C', title:'The Uninterrupted Hour', desc:'Spend one full hour with someone you care about — no phones, no TV, no distractions. Just presence. If you have kids, get on the floor and play. If it's your partner, sit together and actually talk.', diff:'Medium', color:'#60a5fa', bg:'#0f1f3d' },
+  { pillar:'C', title:'The Avoided Conversation', desc:'You know the conversation you've been putting off. This week — have it. Not tomorrow. Before your next session with Wade. Say what needs to be said with honesty and care.', diff:'Hard', color:'#60a5fa', bg:'#0f1f3d' },
+  { pillar:'C', title:'Reach Out First', desc:'Message or call someone you haven't spoken to properly in more than a month. Not a reaction — an initiation. Be the one who reaches out first this week.', diff:'Easy', color:'#60a5fa', bg:'#0f1f3d' },
+  { pillar:'C', title:'The Listening Challenge', desc:'In every conversation this week — listen to understand, not to respond. Ask one follow-up question before you share your own view. Notice how different it feels.', diff:'Medium', color:'#60a5fa', bg:'#0f1f3d' },
+  { pillar:'C', title:'Write It Down', desc:'Write a message to someone who has had a positive impact on your life and send it. Not a text — something real. Tell them specifically what they mean to you.', diff:'Medium', color:'#60a5fa', bg:'#0f1f3d' },
+
+  // LIFESTYLE
+  { pillar:'L', title:'The 2L Water Challenge', desc:'Hit 2 litres of water every single day this week. Buy a 2L bottle, keep it on your desk, and finish it before 6pm. Simple system — no willpower needed.', diff:'Easy', color:'#34d399', bg:'#052e1c' },
+  { pillar:'L', title:'Move Every Day', desc:'Do something physical every single day this week — even if it's just a 20 minute walk. No rest days. Seven days of movement. Build the identity of someone who moves daily.', diff:'Hard', color:'#34d399', bg:'#052e1c' },
+  { pillar:'L', title:'The 10pm Curfew', desc:'In bed by 10:30pm every night this week. Screen off at 9:30pm. This one challenge will improve your energy, mood, focus and patience more than almost anything else.', diff:'Medium', color:'#34d399', bg:'#052e1c' },
+  { pillar:'L', title:'Eat Like Your Avatar', desc:'For 5 days this week, eat the way the best version of you would eat. Prep your meals. Choose fuel over comfort. Notice how your energy responds.', diff:'Medium', color:'#34d399', bg:'#052e1c' },
+  { pillar:'L', title:'The 10,000 Steps Challenge', desc:'Hit 10,000 steps every day for 5 days this week. Use your phone to track it. Walk after dinner. Take the stairs. Park further away. Stack the small movements.', diff:'Medium', color:'#34d399', bg:'#052e1c' },
+
+  // EXPLORATION
+  { pillar:'E', title:'Do One New Thing', desc:'Do something this week you've never done before — or haven't done in years. It doesn't need to be big. A new restaurant, a different walking route, a class, a museum. Just something new.', diff:'Easy', color:'#fb923c', bg:'#2d1a08' },
+  { pillar:'E', title:'The Screen-Free Morning', desc:'Every morning this week — no phone for the first 60 minutes. Use that time for something that fills you up. Walk, read, journal, stretch. Protect your morning from the scroll.', diff:'Medium', color:'#fb923c', bg:'#2d1a08' },
+  { pillar:'E', title:'Get Outside Daily', desc:'Spend at least 30 minutes outdoors every day this week. Not incidental — intentional. Morning walk, lunch outside, evening stroll. Nature resets everything.', diff:'Easy', color:'#fb923c', bg:'#2d1a08' },
+  { pillar:'E', title:'Lock In an Adventure', desc:'Book or commit to one experience from your Adventure List this week. Doesn't matter if it's next week or next month — get it in the calendar and tell someone about it.', diff:'Easy', color:'#fb923c', bg:'#2d1a08' },
+  { pillar:'E', title:'Make a Memory', desc:'Plan and execute one experience this week specifically designed to be memorable. Take photos. Be present. Do it with someone you love or on your own — but do it on purpose.', diff:'Medium', color:'#fb923c', bg:'#2d1a08' },
+
+  // ATTITUDE
+  { pillar:'A', title:'The Morning Declaration', desc:'Every morning this week — stand in front of the mirror and say out loud: "I am capable. I am worthy. I choose to show up for myself today." Even if it feels uncomfortable. Especially then.', diff:'Easy', color:'#f87171', bg:'#2d0f0f' },
+  { pillar:'A', title:'Catch and Flip', desc:'Every time you notice a negative or limiting thought this week — write it down, then write the opposite truth. By Friday you'll have a list of lies DEREK tells you and the truths that replace them.', diff:'Medium', color:'#f87171', bg:'#2d0f0f' },
+  { pillar:'A', title:'No Excuse Week', desc:'For 7 days — zero excuses. Every time you catch yourself making one, stop and ask: "What would my Avatar do right now?" Then do that. Track how many excuses you catch.', diff:'Hard', color:'#f87171', bg:'#2d0f0f' },
+  { pillar:'A', title:'The Gratitude Practice', desc:'Write down 3 specific things you're grateful for every morning this week. Not generic — specific. "I'm grateful for the laugh I had with my kid yesterday." Specificity is what makes it land.', diff:'Easy', color:'#f87171', bg:'#2d0f0f' },
+  { pillar:'A', title:'The DEREK Dialogue', desc:'Write a raw, honest conversation between you and DEREK. Let him say what he says to you. Then respond with truth and ownership. End with one declaration. Read it before bed.', diff:'Medium', color:'#f87171', bg:'#2d0f0f' },
+
+  // ROUTINE
+  { pillar:'R', title:'Win the Morning', desc:'For 5 days this week — no phone for the first 30 minutes. Get up when the alarm goes off. Drink water. Move your body. Plan your day. That's it. Win the morning, win the day.', diff:'Medium', color:'#6366f1', bg:'#14103d' },
+  { pillar:'R', title:'The Sunday Reset', desc:'This Sunday — block 45 minutes. Review last week. Plan this week. Set your Daily Big 3 for each day. Prep what needs prepping. Start Monday already organised.', diff:'Easy', color:'#6366f1', bg:'#14103d' },
+  { pillar:'R', title:'Daily Big 3', desc:'Every morning this week — before you open your phone — write down the 3 most important things you need to do today. Protect those 3 things above everything else. Track your completion rate.', diff:'Easy', color:'#6366f1', bg:'#14103d' },
+  { pillar:'R', title:'The Night Before Prep', desc:'Every evening this week — lay out tomorrow before you sleep. Clothes ready. Bag packed. Lunch prepped. Big 3 written. Go to bed knowing tomorrow is already organised.', diff:'Easy', color:'#6366f1', bg:'#14103d' },
+  { pillar:'R', title:'Stack Your Habits', desc:'Choose one new habit you want to build. Attach it to something you already do every day. "After I brush my teeth, I will journal for 5 minutes." Run the stack every day this week.', diff:'Medium', color:'#6366f1', bg:'#14103d' },
+];
+
+const TIPS = [
+  // CONNECTION
+  { pillar:'C', title:'Presence over performance', text:'You don't need to always be "on" in your relationships. Just be there. Put the phone down. Make eye contact. Ask a real question and actually listen to the answer. Presence is the gift.', color:'#60a5fa' },
+  { pillar:'C', title:'Use "I" language', text:'When something bothers you — speak from your experience, not from blame. "I feel disconnected when I don't have quality time with you" lands completely differently to "You never make time for me."', color:'#60a5fa' },
+  { pillar:'C', title:'Boundaries are self-respect', text:'Saying no to the things that drain you is saying yes to the things that matter. Boundaries aren't walls — they're the lines that protect your energy for the people who deserve it most.', color:'#60a5fa' },
+  { pillar:'C', title:'The Traffic Light check-in', text:'Once a week — mentally run the Traffic Light across your key relationships. Who's green? Who's amber and drifting? Who's red and needs urgent attention? Awareness is the first step to action.', color:'#60a5fa' },
+  { pillar:'C', title:'Reach out before you need to', text:'Don't wait until a relationship is red before you invest in it. The best time to strengthen a connection is when things are fine. A random check-in when nothing is wrong means everything.', color:'#60a5fa' },
+
+  // LIFESTYLE
+  { pillar:'L', title:'Water is your first habit', text:'Before coffee. Before your phone. Before anything — drink a glass of water. Your body is dehydrated after 8 hours of sleep. One glass first thing changes your energy, focus and mood within minutes.', color:'#34d399' },
+  { pillar:'L', title:'Movement is medicine', text:'You don't need a perfect gym session. A 20 minute walk counts. A stretch in your lounge room counts. Movement reduces anxiety, boosts dopamine and creates mental clarity. Just move — every day.', color:'#34d399' },
+  { pillar:'L', title:'Sleep is not optional', text:'Every decision you make is worse on poor sleep. Your patience, your focus, your emotional regulation, your willpower — all of it degrades without 7-8 hours. Protect your sleep like it's your most important appointment.', color:'#34d399' },
+  { pillar:'L', title:'Fuel, don't punish', text:'Eating well isn't about restriction — it's about fuelling the version of you that you want to show up as. Ask before every meal: "Would my Avatar eat this?" Not always. But more often than DEREK would.', color:'#34d399' },
+  { pillar:'L', title:'Stack your non-negotiables', text:'The three daily non-negotiables you set at the start of this program exist for one reason — to give DEREK nowhere to hide. On the days when everything goes wrong, do the three things. Just the three.', color:'#34d399' },
+
+  // EXPLORATION
+  { pillar:'E', title:'Schedule adventure like a meeting', text:'The experiences that never happen are the ones that stay as ideas. Get it in the calendar. Tell someone. Make it real. A plan with a date is ten times more likely to happen than a plan without one.', color:'#fb923c' },
+  { pillar:'E', title:'Outdoors resets everything', text:'Nature reduces cortisol, boosts mood and creates mental space. You don't need a hike — just sunlight and fresh air. A 20 minute walk outside does more for your mental state than an hour of scrolling.', color:'#fb923c' },
+  { pillar:'E', title:'Make memories on purpose', text:'Most people wait for memorable things to happen to them. Your Avatar makes them happen. Plan one experience per month that's worth a story. Your Adventure List exists for exactly this.', color:'#fb923c' },
+  { pillar:'E', title:'Screen time is a choice', text:'Every hour in front of a screen is an hour not building a memory, having a conversation, or experiencing something real. You're not anti-technology — you're pro-life. Choose accordingly.', color:'#fb923c' },
+  { pillar:'E', title:'Curiosity is a muscle', text:'The more you try new things, the easier it becomes to try new things. Start small. A different coffee order. A different route home. A podcast you'd never normally listen to. Curiosity compounds.', color:'#fb923c' },
+
+  // ATTITUDE
+  { pillar:'A', title:'Thoughts are suggestions, not facts', text:'The voice that says "you're not good enough" or "what's the point" — that's DEREK. Not you. You don't have to believe every thought you have. Notice it. Name it. Then choose a different one.', color:'#f87171' },
+  { pillar:'A', title:'Ownership is freedom', text:'The moment you stop blaming — your circumstances, other people, your past — is the moment you get your power back. You can't control what happened. You can always control what you do next.', color:'#f87171' },
+  { pillar:'A', title:'Discipline over motivation', text:'Motivation is a feeling. It comes and goes. Discipline is a decision. It stays. Stop waiting to feel like doing the thing — do it anyway. The feeling follows the action, not the other way around.', color:'#f87171' },
+  { pillar:'A', title:'Gratitude rewires the brain', text:'A consistent gratitude practice — even 3 specific things per day — literally changes how your brain scans for information. It starts looking for evidence that life is good. And it finds it.', color:'#f87171' },
+  { pillar:'A', title:'The 3 second rule', text:'The moment you catch yourself making an excuse, you have 3 seconds to act before DEREK locks in. Don't think. Don't negotiate. In those 3 seconds — move toward the thing, not away from it.', color:'#f87171' },
+
+  // ROUTINE
+  { pillar:'R', title:'Win the first 30 minutes', text:'How you start your morning sets the tone for everything that follows. The phone can wait. Your body, your mind and your plan cannot. Own the first 30 minutes and DEREK starts the day behind.', color:'#6366f1' },
+  { pillar:'R', title:'The Sunday Reset is non-negotiable', text:'One hour on Sunday to review the week, plan the next one, and set your priorities. This single habit prevents reactive weeks, missed commitments and the constant feeling of being behind.', color:'#6366f1' },
+  { pillar:'R', title:'Environment shapes behaviour', text:'Make the right choices obvious and the wrong ones harder. Put your gym gear out the night before. Keep the water bottle on your desk. Remove the junk food from the cupboard. Design your space for your Avatar.', color:'#6366f1' },
+  { pillar:'R', title:'Consistency beats intensity', text:'A 10 minute daily habit beats a 2 hour session once a month. Every time. Small and consistent is how identity changes. You don't need to be perfect — you need to keep showing up.', color:'#6366f1' },
+  { pillar:'R', title:'The Daily Big 3', text:'Three priorities per day. Not ten. Not a list that makes DEREK feel productive without doing anything real. Three things — the ones that actually move your life forward. Do those first. Everything else is bonus.', color:'#6366f1' },
+];
+
+const pillarNames = { C:'Connection', L:'Lifestyle', E:'Exploration', A:'Attitude', R:'Routine' };
+const pillarColors = { C:'#60a5fa', L:'#34d399', E:'#fb923c', A:'#f87171', R:'#6366f1' };
+const pillarBGs = { C:'#0f1f3d', L:'#052e1c', E:'#2d1a08', A:'#2d0f0f', R:'#14103d' };
+
+let currentChallengeFilter = 'all';
+let currentTipsFilter = 'all';
+
+function renderChallenges() {
+  const latest = checkins[checkins.length-1];
+  const scores = latest ? calcScores(latest) : null;
+
+  // Weekly mission
+  let missionPillar = 'R';
+  if (scores) {
+    const pillars = [{k:'C',v:scores.C},{k:'L',v:scores.L},{k:'E',v:scores.E},{k:'A',v:scores.A},{k:'R',v:scores.R}];
+    const lowest = pillars.filter(p=>p.v!==null).sort((a,b)=>(a.v||10)-(b.v||10))[0];
+    if (lowest) missionPillar = lowest.k;
+  }
+  const missionChallenges = CHALLENGES.filter(c=>c.pillar===missionPillar);
+  const mission = missionChallenges[Math.floor(Math.random()*missionChallenges.length)] || CHALLENGES[0];
+  const missionEl = document.getElementById('weekly-mission');
+  if (missionEl) {
+    missionEl.innerHTML = `<div class="mission-box">
+      <div class="mb-label">⚡ This Week's Mission — Based on Your Lowest Score</div>
+      <div class="mb-title">${mission.title}</div>
+      <div class="mb-desc">${mission.desc}</div>
+      <span class="mb-pillar" style="background:${pillarBGs[mission.pillar]};color:${pillarColors[mission.pillar]};">${pillarNames[mission.pillar]}</span>
+      <span class="mb-pillar" style="background:#1e293b;color:#64748b;margin-left:6px;">${mission.diff}</span>
+    </div>`;
+  }
+  renderChallengeList();
+}
+
+function renderChallengeList() {
+  const list = currentChallengeFilter === 'all' ? CHALLENGES : CHALLENGES.filter(c=>c.pillar===currentChallengeFilter);
+  const el = document.getElementById('challenge-list');
+  if (!el) return;
+  el.innerHTML = list.map(c=>`
+    <div class="challenge-card">
+      <div class="cc-pill" style="background:${c.bg};color:${c.color};">${c.pillar}</div>
+      <div style="flex:1;">
+        <div class="cc-title">${c.title}</div>
+        <div class="cc-desc">${c.desc}</div>
+        <div class="cc-diff" style="color:${c.color};">${pillarNames[c.pillar]} · ${c.diff}</div>
+      </div>
+    </div>`).join('');
+}
+
+function filterChallenges(pillar, btn) {
+  currentChallengeFilter = pillar;
+  document.querySelectorAll('#challenge-filter .cf-btn').forEach(b=>b.classList.remove('cf-active'));
+  if(btn) btn.classList.add('cf-active');
+  renderChallengeList();
+}
+
+function renderTipsPage() {
+  const latest = checkins[checkins.length-1];
+  const scores = latest ? calcScores(latest) : null;
+
+  // Tip of the week
+  let tipPillar = 'A';
+  if (scores) {
+    const pillars = [{k:'C',v:scores.C},{k:'L',v:scores.L},{k:'E',v:scores.E},{k:'A',v:scores.A},{k:'R',v:scores.R}];
+    const lowest = pillars.filter(p=>p.v!==null).sort((a,b)=>(a.v||10)-(b.v||10))[0];
+    if (lowest) tipPillar = lowest.k;
+  }
+  const weekTips = TIPS.filter(t=>t.pillar===tipPillar);
+  const topTip = weekTips[Math.floor(Math.random()*weekTips.length)] || TIPS[0];
+  const tipEl = document.getElementById('tip-of-week');
+  if (tipEl) {
+    tipEl.innerHTML = `<div class="week-mission-banner">
+      <div class="wmb-label">💡 Tip of the Week — ${pillarNames[tipPillar]}</div>
+      <div class="wmb-title">${topTip.title}</div>
+      <div class="wmb-text">${topTip.text}</div>
+    </div>`;
+  }
+  renderTipsList();
+}
+
+function renderTipsList() {
+  const list = currentTipsFilter === 'all' ? TIPS : TIPS.filter(t=>t.pillar===currentTipsFilter);
+  const el = document.getElementById('tips-list');
+  if (!el) return;
+  el.innerHTML = list.map(t=>`
+    <div class="tip-card" style="border-left-color:${t.color};">
+      <div class="tc-label" style="color:${t.color};">${pillarNames[t.pillar]}</div>
+      <div class="tc-title">${t.title}</div>
+      <div class="tc-text">${t.text}</div>
+    </div>`).join('');
+}
+
+function filterTips(pillar, btn) {
+  currentTipsFilter = pillar;
+  document.querySelectorAll('#tips-filter .cf-btn').forEach(b=>b.classList.remove('cf-active'));
+  if(btn) btn.classList.add('cf-active');
+  renderTipsList();
+}
+
+// Override showPage to include challenges/tips rendering
+function showPage(id, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  if(btn) btn.classList.add('active');
+  if(id === 'trends') setTimeout(renderTrends, 100);
+  if(id === 'challenges') renderChallenges();
+  if(id === 'tips') renderTipsPage();
+}
+</script>
+
+</body>
+</html>
